@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Saturn Terminal | $SATURN Protocol</title>
+<script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
+<script src="https://terminal.jup.ag/main-v2.js" data-preload></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#03050c;--s1:#07090f;--s2:#0b0d16;--s3:#0f1120;
+  --b1:#12192a;--b2:#1a2338;
+  --gold:#f0b429;--gold-dim:rgba(240,180,41,0.08);
+  --purple:#9945FF;--purple-dim:rgba(153,69,255,0.1);
+  --green:#00d98b;--green-dim:rgba(0,217,139,0.08);
+  --blue:#3b82f6;
+  --text:#dde6f8;--muted:#2e3f5c;--muted2:#5a7090;
+  --red:#ef4444;--amber:#f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;z-index:0;
+  background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(240,180,41,0.05) 0%,transparent 55%),
+  radial-gradient(ellipse 70% 60% at 0% 100%,rgba(153,69,255,0.05) 0%,transparent 55%),
+  radial-gradient(ellipse 60% 50% at 100% 50%,rgba(0,217,139,0.04) 0%,transparent 55%);pointer-events:none;}
+body::after{content:'';position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(240,180,41,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(240,180,41,0.018) 1px,transparent 1px);
+  background-size:52px 52px;pointer-events:none;}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:200;background:rgba(3,5,12,0.93);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--b1);padding:0 28px;height:60px;
+  display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;}
+.nav-ring{width:38px;height:38px;border-radius:50%;border:2px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 0 24px rgba(240,180,41,0.35);}
+.nav-name{display:flex;flex-direction:column;gap:1px;}
+.nav-title{font-size:16px;font-weight:800;letter-spacing:-0.01em;}
+.nav-title span{color:var(--gold);}
+.nav-sub{font-size:9px;color:var(--gold);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;font-family:'Space Mono',monospace;}
+.nav-tabs{display:flex;gap:4px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:3px;}
+.ntab{padding:6px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;
+  border:none;background:transparent;color:var(--muted2);font-family:'Syne',sans-serif;}
+.ntab:hover{color:var(--text);}
+.ntab.act{background:var(--s3);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.4);}
+.ntab.act.swap{color:var(--green);}
+.ntab.act.lock{color:var(--gold);}
+.ntab.act.agents{color:var(--purple);}
+.nav-right{display:flex;align-items:center;gap:8px;}
+.price-chip{display:flex;align-items:center;gap:7px;background:var(--s2);
+  border:1px solid var(--b2);border-radius:8px;padding:5px 11px;font-size:12px;}
+.pdot{width:6px;height:6px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 8px rgba(240,180,41,0.7);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.psym{color:var(--muted2);font-weight:600;}
+.pval{font-weight:700;color:var(--gold);font-family:'Space Mono',monospace;}
+.wallet-btn{display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:10px;
+  font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:'Syne',sans-serif;
+  transition:all 0.2s;background:linear-gradient(135deg,#9945FF,#7c3aed);color:white;
+  box-shadow:0 0 16px rgba(153,69,255,0.25);}
+.wallet-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(153,69,255,0.38);}
+.wallet-btn.conn{background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.28);color:var(--gold);box-shadow:none;}
+
+/* WALLET MODAL */
+.modal-bg{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.8);
+  backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.modal-bg.open{opacity:1;pointer-events:all;}
+.modal{background:var(--s1);border:1px solid var(--b2);border-radius:20px;
+  padding:28px;width:100%;max-width:400px;transform:translateY(14px) scale(0.97);transition:transform 0.2s;}
+.modal-bg.open .modal{transform:none;}
+.modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.modal-title{font-size:20px;font-weight:800;}
+.modal-x{width:30px;height:30px;border-radius:8px;border:1px solid var(--b2);background:transparent;
+  color:var(--muted2);cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;}
+.modal-x:hover{background:var(--s2);color:var(--text);}
+.wallet-list{display:flex;flex-direction:column;gap:8px;}
+.w-opt{display:flex;align-items:center;gap:13px;padding:13px 15px;border-radius:12px;
+  cursor:pointer;border:1.5px solid var(--b1);background:var(--s2);transition:all 0.15s;}
+.w-opt:hover{border-color:var(--b2);transform:translateX(3px);}
+.w-opt.det{border-color:rgba(240,180,41,0.22);}
+.w-opt.det:hover{border-color:var(--gold);}
+.w-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.w-name{font-size:14px;font-weight:700;margin-bottom:2px;}
+.w-status{font-size:11px;color:var(--muted2);}
+.w-status.det{color:var(--gold);}
+.w-divider{text-align:center;font-size:10px;color:var(--muted);padding:8px 0;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;}
+
+/* PAGES */
+.page{position:relative;z-index:1;display:none;}
+.page.act{display:block;}
+
+/* ── HOME PAGE ── */
+.home-wrap{max-width:1100px;margin:0 auto;padding:48px 24px 80px;}
+
+/* Hero */
+.hero{text-align:center;margin-bottom:64px;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;
+  background:var(--gold-dim);border:1px solid rgba(240,180,41,0.2);
+  border-radius:20px;padding:5px 16px;font-size:12px;font-weight:700;color:var(--gold);
+  margin-bottom:22px;font-family:'Space Mono',monospace;}
+.hero-title{font-size:52px;font-weight:800;letter-spacing:-0.04em;line-height:1.05;margin-bottom:16px;}
+.hero-title .g{color:var(--gold);}
+.hero-title .p{color:#c084fc;}
+.hero-sub{font-size:17px;color:var(--muted2);line-height:1.7;max-width:580px;margin:0 auto 36px;}
+.hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.cta-primary{background:linear-gradient(135deg,#f0b429,#d97706);color:#03050c;border:none;
+  padding:14px 28px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;
+  font-family:'Syne',sans-serif;transition:all 0.2s;}
+.cta-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(240,180,41,0.35);}
+.cta-secondary{background:var(--purple-dim);border:1.5px solid rgba(153,69,255,0.3);color:#c084fc;
+  padding:14px 28px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;
+  font-family:'Syne',sans-serif;transition:all 0.2s;}
+.cta-secondary:hover{transform:translateY(-2px);border-color:var(--purple);}
+.cta-outline{background:transparent;border:1.5px solid var(--b2);color:var(--muted2);
+  padding:14px 28px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;
+  font-family:'Syne',sans-serif;transition:all 0.2s;}
+.cta-outline:hover{border-color:var(--gold);color:var(--gold);}
+
+/* Protocol stats */
+.proto-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:64px;}
+.ps{background:var(--s1);border:1px solid var(--b1);border-radius:14px;padding:20px;text-align:center;}
+.ps-val{font-size:28px;font-weight:800;font-family:'Space Mono',monospace;margin-bottom:5px;}
+.ps-val.gold{color:var(--gold);}
+.ps-val.purple{color:#c084fc;}
+.ps-val.green{color:var(--green);}
+.ps-val.blue{color:var(--blue);}
+.ps-lbl{font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.07em;}
+
+/* Apps grid */
+.apps-section{margin-bottom:64px;}
+.apps-title{font-size:22px;font-weight:800;letter-spacing:-0.02em;margin-bottom:6px;}
+.apps-sub{font-size:13px;color:var(--muted2);margin-bottom:28px;}
+.apps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.app-card{background:var(--s1);border:1px solid var(--b1);border-radius:18px;
+  padding:28px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;}
+.app-card:hover{transform:translateY(-3px);box-shadow:0 20px 60px rgba(0,0,0,0.5);}
+.app-card.gold-card{border-color:rgba(240,180,41,0.2);}
+.app-card.gold-card:hover{border-color:var(--gold);}
+.app-card.gold-card::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at top right,rgba(240,180,41,0.06) 0%,transparent 60%);}
+.app-card.purple-card{border-color:rgba(153,69,255,0.2);}
+.app-card.purple-card:hover{border-color:var(--purple);}
+.app-card.purple-card::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at top right,rgba(153,69,255,0.06) 0%,transparent 60%);}
+.app-card.green-card{border-color:rgba(0,217,139,0.2);}
+.app-card.green-card:hover{border-color:var(--green);}
+.app-card.green-card::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at top right,rgba(0,217,139,0.06) 0%,transparent 60%);}
+.app-icon{font-size:36px;margin-bottom:16px;}
+.app-name{font-size:20px;font-weight:800;margin-bottom:6px;}
+.app-desc{font-size:13px;color:var(--muted2);line-height:1.65;margin-bottom:20px;}
+.app-features{display:flex;flex-direction:column;gap:8px;margin-bottom:22px;}
+.app-feature{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--muted2);}
+.app-feature::before{content:"✓";color:var(--gold);font-weight:800;flex-shrink:0;}
+.app-btn{width:100%;padding:12px;border-radius:10px;font-size:14px;font-weight:700;
+  cursor:pointer;border:none;font-family:'Syne',sans-serif;transition:all 0.18s;}
+.app-btn.gold{background:linear-gradient(135deg,#f0b429,#d97706);color:#03050c;}
+.app-btn.purple{background:linear-gradient(135deg,#9945FF,#7c3aed);color:white;}
+.app-btn.green{background:linear-gradient(135deg,#00d98b,#059669);color:#03050c;}
+.app-btn:hover{transform:translateY(-1px);}
+
+/* Token section */
+.token-section{margin-bottom:64px;}
+.token-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.token-card{background:var(--s1);border:1px solid var(--b1);border-radius:18px;padding:28px;}
+.tc-title{font-size:18px;font-weight:800;margin-bottom:6px;}
+.tc-sub{font-size:13px;color:var(--muted2);margin-bottom:22px;line-height:1.6;}
+.utility-list{display:flex;flex-direction:column;gap:14px;}
+.ul-item{display:flex;align-items:flex-start;gap:13px;}
+.ul-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;background:var(--gold-dim);border:1px solid rgba(240,180,41,0.15);}
+.ul-text{}
+.ul-title{font-size:13px;font-weight:700;margin-bottom:2px;}
+.ul-desc{font-size:12px;color:var(--muted2);line-height:1.55;}
+.tokenomics{display:flex;flex-direction:column;gap:12px;}
+.tk-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--b1);}
+.tk-row:last-child{border-bottom:none;}
+.tk-label{font-size:13px;color:var(--muted2);}
+.tk-val{font-size:13px;font-weight:700;font-family:'Space Mono',monospace;color:var(--text);}
+.tk-val.gold{color:var(--gold);}
+.tk-bar{margin-top:6px;}
+.tk-bar-track{height:4px;background:var(--b2);border-radius:2px;overflow:hidden;}
+.tk-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold),#d97706);}
+
+/* ── SWAP PAGE ── */
+.swap-wrap{max-width:520px;margin:0 auto;padding:44px 24px 80px;}
+.swap-hd{text-align:center;margin-bottom:32px;}
+.swap-title{font-size:30px;font-weight:800;letter-spacing:-0.03em;margin-bottom:8px;}
+.swap-sub{font-size:14px;color:var(--muted2);line-height:1.65;}
+#jupiter-terminal-instance{border-radius:20px;overflow:hidden;
+  box-shadow:0 40px 100px rgba(0,0,0,0.6);border:1px solid var(--b2);}
+.why-swap{margin-top:24px;background:var(--s1);border:1px solid var(--b1);border-radius:16px;padding:22px;}
+.wt{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;
+  letter-spacing:0.09em;margin-bottom:14px;font-family:'Space Mono',monospace;}
+.wr{display:flex;align-items:flex-start;gap:11px;margin-bottom:11px;}
+.wr:last-child{margin-bottom:0;}
+.wr-icon{font-size:17px;flex-shrink:0;margin-top:1px;}
+.wr-text{font-size:12px;color:var(--muted2);line-height:1.55;}
+.wr-text strong{color:var(--text);}
+
+@media(max-width:800px){
+  .proto-stats{grid-template-columns:1fr 1fr;}
+  .apps-grid{grid-template-columns:1fr;}
+  .token-grid{grid-template-columns:1fr;}
+}
+@media(max-width:540px){
+  nav{padding:0 14px;}
+  .nav-name{display:none;}
+  .price-chip{display:none;}
+  .hero-title{font-size:32px;}
+  .ntab{padding:6px 10px;font-size:12px;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#">
+    <div class="nav-ring">🪐</div>
+    <div class="nav-name">
+      <span class="nav-title">Saturn <span>Terminal</span></span>
+      <span class="nav-sub">$SATURN Protocol · V1.2</span>
+    </div>
+  </a>
+  <div class="nav-tabs">
+    <button class="ntab act" id="t-home" onclick="switchTab('home')">🪐 Home</button>
+    <button class="ntab swap" id="t-swap" onclick="switchTab('swap')">⚡ Swap</button>
+    <button class="ntab lock" id="t-lock" onclick="goTo('lock.html')">🔒 Lock</button>
+    <button class="ntab agents" id="t-agents" onclick="goTo('agents.html')">🤖 Agents</button>
+  </div>
+  <div class="nav-right">
+    <div class="price-chip">
+      <span class="pdot"></span>
+      <span class="psym">$SATURN</span>
+      <span class="pval" id="satPrice">—</span>
+    </div>
+    <button class="wallet-btn" id="walletBtn" onclick="openModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+      Connect Wallet
+    </button>
+  </div>
+</nav>
+
+<!-- WALLET MODAL -->
+<div class="modal-bg" id="wModal" onclick="bgClose(event)">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Connect Wallet</div>
+      <button class="modal-x" onclick="closeModal()">×</button>
+    </div>
+    <div class="wallet-list" id="wList"></div>
+  </div>
+</div>
+
+<!-- HOME PAGE -->
+<div class="page act" id="page-home">
+  <div class="home-wrap">
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-badge">🪐 Saturn Protocol V1.2 · Built on Solana</div>
+      <div class="hero-title">Lock Meme Coins.<br/><span class="p">Deploy AI Agents.</span><br/>Save with <span class="g">$SATURN.</span></div>
+      <div class="hero-sub">The first protocol combining AI trading agents with meme coin token locking. Pay fees in $SATURN and save 50% across everything.</div>
+      <div class="hero-ctas">
+        <button class="cta-primary" onclick="switchTab('swap')">⚡ Get $SATURN</button>
+        <button class="cta-secondary" onclick="goTo('agents.html')">🤖 Deploy Agent</button>
+        <button class="cta-outline" onclick="goTo('lock.html')">🔒 Lock Tokens</button>
+      </div>
+    </div>
+
+    <!-- Protocol stats -->
+    <div class="proto-stats">
+      <div class="ps"><div class="ps-val gold">$SATURN</div><div class="ps-lbl">Native Token</div></div>
+      <div class="ps"><div class="ps-val purple">50%</div><div class="ps-lbl">Fee Discount</div></div>
+      <div class="ps"><div class="ps-val green">0.20%</div><div class="ps-lbl">Protocol Fee</div></div>
+      <div class="ps"><div class="ps-val blue">V1.2</div><div class="ps-lbl">Current Version</div></div>
+    </div>
+
+    <!-- Apps -->
+    <div class="apps-section">
+      <div class="apps-title">Everything in One Protocol</div>
+      <div class="apps-sub">Three tools. One token. Complete Solana meme ecosystem coverage.</div>
+      <div class="apps-grid">
+        <!-- Swap -->
+        <div class="app-card green-card" onclick="switchTab('swap')">
+          <div class="app-icon">⚡</div>
+          <div class="app-name">Saturn Swap</div>
+          <div class="app-desc">Swap SOL to $SATURN instantly using Jupiter's best-rate aggregator. Unlock 50% discounts across the whole protocol.</div>
+          <div class="app-features">
+            <div class="app-feature">Jupiter-powered best rates</div>
+            <div class="app-feature">SOL → $SATURN in seconds</div>
+            <div class="app-feature">Unlocks all protocol discounts</div>
+          </div>
+          <button class="app-btn green">⚡ Swap Now</button>
+        </div>
+        <!-- Lock -->
+        <div class="app-card gold-card" onclick="goTo('lock.html')">
+          <div class="app-icon">🔒</div>
+          <div class="app-name">Saturn Lock</div>
+          <div class="app-desc">Lock any Solana meme token by time or price target. Prove diamond hands, protect LP, build community trust.</div>
+          <div class="app-features">
+            <div class="app-feature">Time-based & price-based locks</div>
+            <div class="app-feature">0.5 SOL fee or 50% off with $SATURN</div>
+            <div class="app-feature">All major wallets supported</div>
+            <div class="app-feature">0.20% protocol fee on locked tokens</div>
+          </div>
+          <button class="app-btn gold">🔒 Lock Tokens</button>
+        </div>
+        <!-- Agents -->
+        <div class="app-card purple-card" onclick="goTo('agents.html')">
+          <div class="app-icon">🤖</div>
+          <div class="app-name">Saturn Agents</div>
+          <div class="app-desc">Deploy autonomous AI trading bots with proven meme coin strategies. MACD, scalping, sniping, and DCA — all automated.</div>
+          <div class="app-features">
+            <div class="app-feature">4 battle-tested bot strategies</div>
+            <div class="app-feature">0.125 SOL/mo or 50% off with $SATURN</div>
+            <div class="app-feature">Max 3 simultaneous positions</div>
+            <div class="app-feature">10% performance fee on profits</div>
+          </div>
+          <button class="app-btn purple">🤖 Deploy Bot</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Token info -->
+    <div class="token-section">
+      <div class="apps-title" style="margin-bottom:6px;">$SATURN Token</div>
+      <div class="apps-sub" style="margin-bottom:28px;">The native token powering every Saturn Protocol transaction</div>
+      <div class="token-grid">
+        <div class="token-card">
+          <div class="tc-title">Token Utility</div>
+          <div class="tc-sub">$SATURN is the key to saving across all Saturn Protocol services</div>
+          <div class="utility-list">
+            <div class="ul-item">
+              <div class="ul-icon">🔒</div>
+              <div class="ul-text">
+                <div class="ul-title">Lock Fee Discount</div>
+                <div class="ul-desc">Pay lock creation fees in $SATURN and save 50% vs SOL</div>
+              </div>
+            </div>
+            <div class="ul-item">
+              <div class="ul-icon">🤖</div>
+              <div class="ul-text">
+                <div class="ul-title">Agent Subscription Discount</div>
+                <div class="ul-desc">Pay monthly bot fees in $SATURN and save 50% vs SOL</div>
+              </div>
+            </div>
+            <div class="ul-item">
+              <div class="ul-icon">📈</div>
+              <div class="ul-text">
+                <div class="ul-title">Real Buy Pressure</div>
+                <div class="ul-desc">Every lock and every bot subscription drives organic demand</div>
+              </div>
+            </div>
+            <div class="ul-item">
+              <div class="ul-icon">🔥</div>
+              <div class="ul-text">
+                <div class="ul-title">Protocol Revenue</div>
+                <div class="ul-desc">0.20% of all locked tokens flow to the treasury</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="token-card">
+          <div class="tc-title">Token Details</div>
+          <div class="tc-sub">Saturn V1.2 — launched on pump.fun, graduated to Raydium</div>
+          <div class="tokenomics">
+            <div class="tk-row"><span class="tk-label">Token Name</span><span class="tk-val gold">Saturn V1.2</span></div>
+            <div class="tk-row"><span class="tk-label">Ticker</span><span class="tk-val gold">$SATURN</span></div>
+            <div class="tk-row"><span class="tk-label">Network</span><span class="tk-val">Solana</span></div>
+            <div class="tk-row"><span class="tk-label">Lock Fee (SOL)</span><span class="tk-val">0.5 SOL</span></div>
+            <div class="tk-row"><span class="tk-label">Lock Fee ($SATURN)</span><span class="tk-val gold">50% OFF</span></div>
+            <div class="tk-row"><span class="tk-label">Agent Fee (SOL)</span><span class="tk-val">0.125 SOL/mo</span></div>
+            <div class="tk-row"><span class="tk-label">Agent Fee ($SATURN)</span><span class="tk-val gold">50% OFF</span></div>
+            <div class="tk-row"><span class="tk-label">Protocol Fee</span><span class="tk-val">0.20% tokens</span></div>
+            <div class="tk-row"><span class="tk-label">Contract Address</span><span class="tk-val" style="font-size:10px;color:var(--muted2);">Update after launch</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SWAP PAGE -->
+<div class="page" id="page-swap">
+  <div class="swap-wrap">
+    <div class="swap-hd">
+      <div class="swap-title">Get <span style="color:var(--gold)">$SATURN</span></div>
+      <div class="swap-sub">Swap SOL → $SATURN to unlock <strong>50% off</strong> on all locks and agent subscriptions. Powered by Jupiter.</div>
+    </div>
+    <div id="jupiter-terminal-instance"></div>
+    <div class="why-swap">
+      <div class="wt">Why hold $SATURN?</div>
+      <div class="wr"><span class="wr-icon">🔒</span>
+        <div class="wr-text"><strong>50% off lock fees</strong> — save on every token lock you create</div></div>
+      <div class="wr"><span class="wr-icon">🤖</span>
+        <div class="wr-text"><strong>50% off agent subscriptions</strong> — deploy bots at half price monthly</div></div>
+      <div class="wr"><span class="wr-icon">📈</span>
+        <div class="wr-text"><strong>Real utility demand</strong> — every protocol user drives buy pressure on $SATURN</div></div>
+      <div class="wr"><span class="wr-icon">🚀</span>
+        <div class="wr-text"><strong>Early holder advantage</strong> — get in before mass protocol adoption</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── WALLETS ──────────────────────────────────────────────
+const WALLETS=[
+  {id:"phantom",name:"Phantom",icon:"🟣",color:"#ab9ff2",detect:()=>window.solana?.isPhantom,
+    connect:async()=>{const r=await window.solana.connect();return r.publicKey.toString();},url:"https://phantom.app/"},
+  {id:"solflare",name:"Solflare",icon:"🔶",color:"#fc7227",detect:()=>window.solflare?.isSolflare,
+    connect:async()=>{await window.solflare.connect();return window.solflare.publicKey.toString();},url:"https://solflare.com/"},
+  {id:"backpack",name:"Backpack",icon:"🎒",color:"#e33e3f",detect:()=>window.backpack?.isBackpack,
+    connect:async()=>{await window.backpack.connect();return window.backpack.publicKey.toString();},url:"https://backpack.app/"},
+  {id:"coinbase",name:"Coinbase Wallet",icon:"🔵",color:"#0052ff",detect:()=>!!window.coinbaseSolana,
+    connect:async()=>{const r=await window.coinbaseSolana.connect();return r.publicKey.toString();},url:"https://coinbase.com/wallet"},
+  {id:"brave",name:"Brave Wallet",icon:"🦁",color:"#ff6000",detect:()=>window.solana?.isBraveWallet,
+    connect:async()=>{const r=await window.solana.connect();return r.publicKey.toString();},url:"https://brave.com/wallet/"},
+  {id:"trust",name:"Trust Wallet",icon:"🛡️",color:"#3375BB",detect:()=>!!window.trustwallet?.solana,
+    connect:async()=>{const r=await window.trustwallet.solana.connect();return r.publicKey.toString();},url:"https://trustwallet.com/"},
+];
+let connWallet=null;
+let solUSD=150,satUSD=0.005;
+const SATURN_MINT="PASTE_SATURN_MINT_HERE";
+const RPC="https://api.mainnet-beta.solana.com";
+
+function prov(id){const m={phantom:window.solana,solflare:window.solflare,backpack:window.backpack,coinbase:window.coinbaseSolana,brave:window.solana,trust:window.trustwallet?.solana};return m[id];}
+function buildWalletList(){
+  const det=WALLETS.filter(w=>w.detect&&w.detect()),rest=WALLETS.filter(w=>!w.detect||!w.detect());
+  let h="";
+  if(det.length){h+=`<div class="w-divider">Detected</div>`;h+=det.map(w=>wHTML(w,true)).join("");}
+  if(rest.length){h+=`<div class="w-divider">Install to use</div>`;h+=rest.map(w=>wHTML(w,false)).join("");}
+  document.getElementById("wList").innerHTML=h;
+}
+function wHTML(w,det){return`<div class="w-opt ${det?"det":""}" onclick="pickWallet('${w.id}')">
+  <div class="w-icon" style="background:${w.color}22;border:1px solid ${w.color}44;">${w.icon}</div>
+  <div style="flex:1"><div class="w-name">${w.name}</div>
+    <div class="w-status ${det?"det":""}">${det?"Detected · Ready":"Not installed"}</div></div>
+  <div style="color:var(--muted);font-size:16px;">${det?"›":"↗"}</div></div>`;}
+async function pickWallet(id){
+  const w=WALLETS.find(x=>x.id===id);if(!w)return;
+  if(!w.detect||!w.detect()){window.open(w.url,"_blank");return;}
+  try{const pk=await w.connect();connWallet={id,pubkey:pk};closeModal();updateWalletBtn();}
+  catch(e){alert("Connect failed: "+(e.message||"unknown"));}
+}
+function updateWalletBtn(){
+  const btn=document.getElementById("walletBtn");if(!btn)return;
+  if(connWallet){btn.className="wallet-btn conn";const w=WALLETS.find(x=>x.id===connWallet.id);
+    btn.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block;"></span> ${w?.name}: ${connWallet.pubkey.slice(0,4)}...${connWallet.pubkey.slice(-4)}`;}
+  else{btn.className="wallet-btn";btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> Connect Wallet`;}
+}
+function openModal(){
+  if(connWallet){if(confirm("Disconnect?")){{connWallet=null;updateWalletBtn();}return;}}
+  buildWalletList();document.getElementById("wModal").classList.add("open");
+}
+function closeModal(){document.getElementById("wModal").classList.remove("open");}
+function bgClose(e){if(e.target.id==="wModal")closeModal();}
+
+// ── TAB SWITCHING ────────────────────────────────────────
+function switchTab(tab){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("act"));
+  document.querySelectorAll(".ntab").forEach(t=>t.classList.remove("act"));
+  document.getElementById("page-"+tab).classList.add("act");
+  document.getElementById("t-"+tab).classList.add("act");
+  if(tab==="swap")initJupiter();
+}
+function goTo(url){window.location.href=url;}
+
+// ── JUPITER ──────────────────────────────────────────────
+let jupInit=false;
+function initJupiter(){
+  if(jupInit)return;
+  if(!window.Jupiter){setTimeout(initJupiter,500);return;}
+  jupInit=true;
+  window.Jupiter.init({
+    displayMode:"integrated",
+    integratedTargetId:"jupiter-terminal-instance",
+    endpoint:RPC,
+    defaultExplorer:"Solscan",
+    formProps:{
+      initialInputMint:"So11111111111111111111111111111111111111112",
+      initialOutputMint:SATURN_MINT==="PASTE_SATURN_MINT_HERE"
+        ?"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        :SATURN_MINT,
+      fixedInputMint:false,fixedOutputMint:false,
+    },
+    onSuccess:({txid})=>{
+      console.log("Swap success:",txid);
+      setTimeout(()=>{switchTab("home");showToast(txid);},1500);
+    },
+  });
+}
+
+function showToast(txid){
+  const t=document.createElement("div");
+  t.style.cssText="position:fixed;bottom:24px;right:24px;z-index:999;background:#d97706;color:#03050c;border-radius:12px;padding:14px 18px;font-family:'Syne',sans-serif;font-size:13px;font-weight:700;box-shadow:0 8px 28px rgba(240,180,41,0.35);max-width:300px;";
+  t.innerHTML=`✅ Swapped to $SATURN! You now have fee discounts.<br/><a href="https://solscan.io/tx/${txid}" target="_blank" style="color:rgba(3,5,12,0.7);font-size:11px;font-family:'Space Mono',monospace;">View tx ↗</a>`;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),6000);
+}
+
+// ── PRICES ───────────────────────────────────────────────
+async function fetchPrices(){
+  try{const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd");
+    const d=await r.json();solUSD=d?.solana?.usd||150;satUSD=0.005;
+    const el=document.getElementById("satPrice");if(el)el.textContent="$"+satUSD.toFixed(4);}catch(e){}
+}
+
+fetchPrices();
+setInterval(fetchPrices,60000);
+window.addEventListener("load",async()=>{
+  if(window.solana?.isPhantom){try{const r=await window.solana.connect({onlyIfTrusted:true});connWallet={id:"phantom",pubkey:r.publicKey.toString()};updateWalletBtn();}catch(e){}}
+});
+</script>
+</body>
+</html>
