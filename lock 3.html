@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Saturn Lock | Solana Token Locker</title>
+<script src="https://unpkg.com/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
+<script src="https://terminal.jup.ag/main-v2.js" data-preload></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#03050c;--s1:#07090f;--s2:#0b0d16;--s3:#0f1120;
+  --b1:#12192a;--b2:#1a2338;
+  --gold:#f0b429;--gold-dim:rgba(240,180,41,0.1);
+  --purple:#9945FF;--purple-dim:rgba(153,69,255,0.1);
+  --green:#00d98b;--green-dim:rgba(0,217,139,0.08);
+  --text:#dde6f8;--muted:#2e3f5c;--muted2:#5a7090;
+  --red:#ef4444;--amber:#f59e0b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;z-index:0;
+  background:radial-gradient(ellipse 80% 60% at 50% -20%,rgba(240,180,41,0.06) 0%,transparent 60%),
+  radial-gradient(ellipse 60% 50% at 100% 100%,rgba(153,69,255,0.06) 0%,transparent 60%);
+  pointer-events:none;}
+body::after{content:'';position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(240,180,41,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(240,180,41,0.02) 1px,transparent 1px);
+  background-size:52px 52px;pointer-events:none;}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:200;background:rgba(3,5,12,0.93);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--b1);padding:0 28px;height:60px;
+  display:flex;align-items:center;justify-content:space-between;}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;}
+.nav-logo-ring{width:36px;height:36px;border-radius:50%;border:2px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  box-shadow:0 0 20px rgba(240,180,41,0.3);}
+.nav-logo-text{font-size:16px;font-weight:800;letter-spacing:-0.01em;}
+.nav-logo-text span{color:var(--gold);}
+.nav-links{display:flex;gap:4px;}
+.nav-link{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;
+  color:var(--muted2);text-decoration:none;transition:all 0.15s;cursor:pointer;border:none;
+  background:transparent;font-family:'Syne',sans-serif;}
+.nav-link:hover{color:var(--text);}
+.nav-link.active{background:var(--s2);color:var(--gold);}
+.nav-right{display:flex;align-items:center;gap:8px;}
+.price-chip{display:flex;align-items:center;gap:7px;background:var(--s2);
+  border:1px solid var(--b2);border-radius:8px;padding:5px 11px;font-size:12px;}
+.pdot{width:6px;height:6px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 8px rgba(240,180,41,0.7);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.psym{color:var(--muted2);font-weight:600;}
+.pval{font-weight:700;color:var(--gold);font-family:'Space Mono',monospace;}
+.wallet-btn{display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:10px;
+  font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:'Syne',sans-serif;
+  transition:all 0.2s;background:linear-gradient(135deg,#9945FF,#7c3aed);color:white;
+  box-shadow:0 0 16px rgba(153,69,255,0.25);}
+.wallet-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(153,69,255,0.38);}
+.wallet-btn.conn{background:rgba(240,180,41,0.1);border:1px solid rgba(240,180,41,0.28);
+  color:var(--gold);box-shadow:none;}
+
+/* WALLET MODAL */
+.modal-bg{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.8);
+  backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;pointer-events:none;transition:opacity 0.2s;}
+.modal-bg.open{opacity:1;pointer-events:all;}
+.modal{background:var(--s1);border:1px solid var(--b2);border-radius:20px;
+  padding:28px;width:100%;max-width:400px;
+  transform:translateY(14px) scale(0.97);transition:transform 0.2s;}
+.modal-bg.open .modal{transform:none;}
+.modal-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.modal-title{font-size:20px;font-weight:800;}
+.modal-x{width:30px;height:30px;border-radius:8px;border:1px solid var(--b2);
+  background:transparent;color:var(--muted2);cursor:pointer;font-size:17px;
+  display:flex;align-items:center;justify-content:center;}
+.modal-x:hover{background:var(--s2);color:var(--text);}
+.wallet-list{display:flex;flex-direction:column;gap:8px;}
+.w-opt{display:flex;align-items:center;gap:13px;padding:13px 15px;border-radius:12px;
+  cursor:pointer;border:1.5px solid var(--b1);background:var(--s2);transition:all 0.15s;}
+.w-opt:hover{border-color:var(--b2);transform:translateX(3px);}
+.w-opt.det{border-color:rgba(240,180,41,0.22);}
+.w-opt.det:hover{border-color:var(--gold);}
+.w-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:20px;flex-shrink:0;}
+.w-name{font-size:14px;font-weight:700;margin-bottom:2px;}
+.w-status{font-size:11px;color:var(--muted2);}
+.w-status.det{color:var(--gold);}
+.w-divider{text-align:center;font-size:10px;color:var(--muted);padding:8px 0;
+  text-transform:uppercase;letter-spacing:0.1em;font-weight:700;}
+
+/* MAIN */
+main{position:relative;z-index:1;max-width:680px;margin:0 auto;padding:44px 24px 80px;}
+.banner{background:linear-gradient(135deg,rgba(240,180,41,0.07),rgba(153,69,255,0.05));
+  border:1px solid rgba(240,180,41,0.2);border-radius:14px;padding:14px 20px;margin-bottom:36px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.banner-l{display:flex;align-items:center;gap:12px;}
+.bt{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:2px;}
+.bs{font-size:12px;color:var(--muted2);}
+.banner-pill{background:rgba(240,180,41,0.14);border:1px solid rgba(240,180,41,0.28);
+  color:var(--gold);border-radius:8px;padding:7px 13px;font-size:12px;font-weight:700;
+  white-space:nowrap;font-family:'Space Mono',monospace;}
+
+/* STEPS */
+.steps{display:flex;align-items:center;margin-bottom:36px;}
+.si{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.sc{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Space Mono',monospace;font-size:12px;font-weight:700;
+  border:2px solid var(--b2);color:var(--muted);transition:all 0.3s;}
+.sc.act{border-color:var(--gold);color:var(--gold);}
+.sc.done{background:var(--gold);border-color:var(--gold);color:#03050c;}
+.sl{font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap;}
+.sl.act{color:var(--gold);}
+.sconn{flex:1;height:1px;background:var(--b2);margin:0 7px 21px;transition:background 0.4s;}
+.sconn.done{background:var(--gold);}
+
+/* CARD */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:20px;
+  padding:36px;box-shadow:0 40px 100px rgba(0,0,0,0.7);}
+.snum{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--gold);
+  letter-spacing:0.15em;text-transform:uppercase;margin-bottom:7px;}
+.ctitle{font-size:24px;font-weight:800;letter-spacing:-0.02em;margin-bottom:5px;}
+.csub{font-size:13px;color:var(--muted2);margin-bottom:22px;line-height:1.65;}
+
+/* LOCK TYPE CARDS */
+.lc-grid{display:flex;flex-direction:column;gap:12px;}
+.lc{background:var(--s2);border:1.5px solid var(--b1);border-radius:14px;
+  padding:20px;cursor:pointer;transition:all 0.18s;position:relative;overflow:hidden;}
+.lc:hover{border-color:var(--b2);transform:translateY(-1px);}
+.lc.sel{border-color:var(--gold);}
+.lc.sel::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at top left,rgba(240,180,41,0.05) 0%,transparent 65%);}
+.lc-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.lc-icon{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;
+  justify-content:center;background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.15);font-size:20px;}
+.lc-title{font-size:15px;font-weight:700;margin-bottom:4px;}
+.lc-desc{font-size:12px;color:var(--muted2);line-height:1.65;margin-bottom:12px;}
+.tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.tl{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;}
+.tag{font-size:9px;font-weight:700;padding:3px 7px;border-radius:5px;display:inline-flex;
+  align-items:center;gap:3px;text-transform:uppercase;letter-spacing:0.04em;}
+.tg{background:var(--gold-dim);border:1px solid rgba(240,180,41,0.22);color:var(--gold);}
+.ta{background:rgba(153,69,255,0.1);border:1px solid rgba(153,69,255,0.22);color:#c084fc;}
+.bbeta{font-family:'Space Mono',monospace;font-size:9px;font-weight:700;padding:2px 6px;
+  border-radius:4px;background:rgba(153,69,255,0.14);border:1px solid rgba(153,69,255,0.28);color:#c084fc;}
+.radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--b2);
+  display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;}
+.radio.chk{background:var(--gold);border-color:var(--gold);}
+.radio.chk::after{content:'';width:7px;height:7px;border-radius:50%;background:#03050c;}
+
+/* FORMS */
+.fg{margin-bottom:14px;}
+.fl{font-size:10px;font-weight:700;color:var(--muted2);display:block;margin-bottom:6px;
+  letter-spacing:0.07em;text-transform:uppercase;}
+.fi{width:100%;background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;
+  padding:11px 13px;color:var(--text);font-size:13px;font-family:'Syne',sans-serif;transition:border-color 0.2s;}
+.fi:focus{outline:none;border-color:var(--gold);}
+.fi::placeholder{color:var(--muted);}
+select.fi{cursor:pointer;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+/* FEE TOGGLE */
+.fee-lbl{font-size:10px;font-weight:700;color:var(--muted2);letter-spacing:0.07em;
+  text-transform:uppercase;margin-bottom:9px;display:block;}
+.fee-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+.fo{border-radius:12px;padding:15px;cursor:pointer;border:2px solid var(--b1);
+  background:var(--s2);transition:all 0.18s;position:relative;}
+.fo:hover{border-color:var(--b2);}
+.fo.fsol{border-color:var(--purple);background:var(--purple-dim);}
+.fo.fsat{border-color:var(--gold);background:var(--gold-dim);}
+.fo-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.fo-icon{font-size:18px;}
+.fo-title{font-size:13px;font-weight:700;margin-bottom:3px;}
+.fo-amt{font-size:16px;font-weight:700;font-family:'Space Mono',monospace;margin-bottom:2px;}
+.fo-amt.sol{color:var(--purple);}
+.fo-amt.sat{color:var(--gold);}
+.fo-sub{font-size:11px;color:var(--muted2);}
+.save-pill{position:absolute;top:-9px;right:10px;
+  background:linear-gradient(135deg,#f0b429,#d97706);color:#03050c;
+  font-size:9px;font-weight:800;padding:2px 8px;border-radius:20px;font-family:'Space Mono',monospace;}
+.frdot{width:16px;height:16px;border-radius:50%;border:2px solid var(--b2);
+  display:flex;align-items:center;justify-content:center;}
+.fo.fsol .frdot{background:var(--purple);border-color:var(--purple);}
+.fo.fsol .frdot::after{content:'';width:6px;height:6px;border-radius:50%;background:#03050c;}
+.fo.fsat .frdot{background:var(--gold);border-color:var(--gold);}
+.fo.fsat .frdot::after{content:'';width:6px;height:6px;border-radius:50%;background:#03050c;}
+
+/* FEE BOX */
+.fbox{background:var(--s3);border:1px solid var(--b2);border-radius:12px;
+  padding:15px 17px;margin-bottom:18px;}
+.fbox-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;
+  margin-bottom:11px;font-family:'Space Mono',monospace;color:var(--gold);}
+.fline{display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:1px solid var(--b1);}
+.fline:last-child{border-bottom:none;border-top:1px solid var(--b2);padding-top:10px;margin-top:3px;}
+.fk{font-size:12px;color:var(--muted2);}
+.fv{font-size:12px;font-weight:700;font-family:'Space Mono',monospace;color:var(--text);}
+.fv.g{color:var(--gold);}
+.fv.p{color:var(--purple);}
+
+/* BUTTONS */
+.nav-row{display:flex;justify-content:space-between;align-items:center;
+  margin-top:24px;padding-top:20px;border-top:1px solid var(--b1);}
+.btn-back{background:transparent;color:var(--muted2);border:1.5px solid var(--b2);
+  padding:11px 18px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;
+  font-family:'Syne',sans-serif;transition:all 0.18s;}
+.btn-back:hover{border-color:var(--gold);color:var(--gold);}
+.btn-back:disabled{opacity:0.3;cursor:not-allowed;}
+.btn-next{background:linear-gradient(135deg,#d97706,#b45309);color:white;border:none;
+  padding:11px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;
+  font-family:'Syne',sans-serif;display:flex;align-items:center;gap:7px;transition:all 0.18s;}
+.btn-next:hover{transform:translateY(-1px);box-shadow:0 7px 22px rgba(240,180,41,0.3);}
+.btn-next:disabled{opacity:0.3;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-confirm{background:linear-gradient(135deg,#f0b429,#d97706);color:#03050c;border:none;
+  padding:12px 24px;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;
+  font-family:'Syne',sans-serif;display:flex;align-items:center;gap:7px;transition:all 0.18s;}
+.btn-confirm:hover{transform:translateY(-1px);box-shadow:0 7px 26px rgba(240,180,41,0.38);}
+.btn-confirm:disabled{opacity:0.3;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* REVIEW */
+.rtbl{background:#020408;border:1px solid var(--b1);border-radius:12px;overflow:hidden;margin-bottom:16px;}
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:12px 17px;border-bottom:1px solid var(--b1);}
+.rrow:last-child{border-bottom:none;}
+.rk{font-size:12px;color:var(--muted2);}
+.rv{font-size:12px;font-weight:700;font-family:'Space Mono',monospace;
+  text-align:right;max-width:55%;word-break:break-all;}
+
+/* ALERTS */
+.alert{border-radius:10px;padding:12px 15px;margin-bottom:13px;font-size:12px;line-height:1.65;}
+.a-gold{background:rgba(240,180,41,0.06);border:1px solid rgba(240,180,41,0.2);color:#ca8a04;}
+.a-green{background:var(--green-dim);border:1px solid rgba(0,217,139,0.22);color:var(--green);}
+.a-red{background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.18);color:#f87171;}
+.a-blue{background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.18);color:#60a5fa;}
+
+/* RECIPIENT */
+.rec-row{display:grid;grid-template-columns:1fr auto;gap:9px;margin-bottom:9px;align-items:center;}
+.btn-rm{background:rgba(239,68,68,0.09);border:1px solid rgba(239,68,68,0.16);color:#f87171;
+  border-radius:8px;padding:9px 12px;cursor:pointer;font-size:15px;line-height:1;}
+.btn-add{width:100%;background:transparent;border:1.5px dashed var(--b2);color:var(--muted);
+  border-radius:10px;padding:11px;cursor:pointer;font-size:13px;font-weight:700;
+  font-family:'Syne',sans-serif;transition:all 0.18s;margin-top:3px;}
+.btn-add:hover{border-color:var(--gold);color:var(--gold);}
+
+/* LOADING */
+.txstep{display:flex;align-items:center;gap:11px;padding:10px 0;
+  border-bottom:1px solid var(--b1);font-size:13px;}
+.txstep:last-child{border-bottom:none;}
+.txdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.td-p{background:var(--muted);opacity:0.25;}
+.td-a{background:var(--amber);box-shadow:0 0 7px rgba(245,158,11,0.5);animation:pulse 1s infinite;}
+.td-d{background:var(--green);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.txlbl{flex:1;color:var(--muted2);}
+.txlbl.active{color:var(--text);font-weight:600;}
+.txlbl.done{color:var(--green);}
+.spinner{display:inline-block;width:15px;height:15px;
+  border:2px solid rgba(240,180,41,0.2);border-top-color:var(--amber);
+  border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* SUCCESS */
+.success{text-align:center;padding:16px 0;}
+.s-emoji{font-size:52px;margin-bottom:14px;}
+.s-title{font-size:26px;font-weight:800;letter-spacing:-0.025em;margin-bottom:7px;color:var(--gold);}
+.s-sub{font-size:13px;color:var(--muted2);line-height:1.7;margin-bottom:22px;}
+.txcard{background:var(--s2);border:1px solid var(--b1);border-radius:10px;
+  padding:13px 15px;margin-bottom:9px;text-align:left;}
+.txcard-lbl{font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;
+  letter-spacing:0.08em;font-weight:700;font-family:'Space Mono',monospace;}
+.txlink{font-family:'Space Mono',monospace;font-size:11px;color:#60a5fa;
+  word-break:break-all;text-decoration:none;}
+.txlink:hover{text-decoration:underline;}
+.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:18px;}
+.stat{background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:12px;text-align:center;}
+.stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;
+  margin-bottom:4px;font-family:'Space Mono',monospace;}
+.stat-val{font-size:16px;font-weight:800;color:var(--gold);font-family:'Space Mono',monospace;}
+
+@media(max-width:540px){
+  nav{padding:0 14px;}
+  .nav-links{display:none;}
+  .price-chip{display:none;}
+  main{padding:28px 14px 60px;}
+  .card{padding:22px 18px;}
+  .fee-grid,.g2{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html">
+    <div class="nav-logo-ring">🪐</div>
+    <span class="nav-logo-text">Saturn <span>Lock</span></span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link active" href="lock.html">🔒 Lock</a>
+    <a class="nav-link" href="agents.html">🤖 Agents</a>
+    <a class="nav-link" href="index.html">🪐 Terminal</a>
+  </div>
+  <div class="nav-right">
+    <div class="price-chip">
+      <span class="pdot"></span>
+      <span class="psym">$SATURN</span>
+      <span class="pval" id="satPrice">—</span>
+    </div>
+    <button class="wallet-btn" id="walletBtn" onclick="openModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+      Connect Wallet
+    </button>
+  </div>
+</nav>
+
+<!-- WALLET MODAL -->
+<div class="modal-bg" id="wModal" onclick="bgClose(event)">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title">Connect Wallet</div>
+      <button class="modal-x" onclick="closeModal()">×</button>
+    </div>
+    <div class="wallet-list" id="wList"></div>
+  </div>
+</div>
+
+<main>
+  <div class="banner">
+    <div class="banner-l">
+      <span style="font-size:22px;">🪐</span>
+      <div>
+        <div class="bt">Save 50% on lock fees with $SATURN</div>
+        <div class="bs">Pay creation fees in $SATURN instead of 0.5 SOL</div>
+      </div>
+    </div>
+    <div class="banner-pill">50% OFF WITH $SATURN</div>
+  </div>
+  <div class="steps" id="stepBar"></div>
+  <div class="card" id="mainCard"></div>
+</main>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const FEE_WALLET     = "F36PUYop1oCsBQMyP8aHncGppiGd1xyUm8k75PtHAoN3";
+const SOL_FEE        = 0.5;
+const SAT_DISC       = 0.5;
+const TOKEN_FEE_PCT  = 0.002;
+const RPC            = "https://api.mainnet-beta.solana.com";
+const SATURN_MINT    = "PASTE_SATURN_MINT_HERE"; // update after launch
+const SATURN_DEC     = 9;
+const STEP_NAMES     = ["Type","Config","Recipients","Review"];
+
+let solUSD=150, satUSD=0.005;
+let connWallet=null;
+
+// ── WALLETS ─────────────────────────────────────────────
+const WALLETS=[
+  {id:"phantom",name:"Phantom",icon:"🟣",color:"#ab9ff2",
+    detect:()=>window.solana?.isPhantom,
+    connect:async()=>{const r=await window.solana.connect();return r.publicKey.toString();},
+    url:"https://phantom.app/"},
+  {id:"solflare",name:"Solflare",icon:"🔶",color:"#fc7227",
+    detect:()=>window.solflare?.isSolflare,
+    connect:async()=>{await window.solflare.connect();return window.solflare.publicKey.toString();},
+    url:"https://solflare.com/"},
+  {id:"backpack",name:"Backpack",icon:"🎒",color:"#e33e3f",
+    detect:()=>window.backpack?.isBackpack,
+    connect:async()=>{await window.backpack.connect();return window.backpack.publicKey.toString();},
+    url:"https://backpack.app/"},
+  {id:"coinbase",name:"Coinbase Wallet",icon:"🔵",color:"#0052ff",
+    detect:()=>!!window.coinbaseSolana,
+    connect:async()=>{const r=await window.coinbaseSolana.connect();return r.publicKey.toString();},
+    url:"https://www.coinbase.com/wallet"},
+  {id:"brave",name:"Brave Wallet",icon:"🦁",color:"#ff6000",
+    detect:()=>window.solana?.isBraveWallet,
+    connect:async()=>{const r=await window.solana.connect();return r.publicKey.toString();},
+    url:"https://brave.com/wallet/"},
+  {id:"trust",name:"Trust Wallet",icon:"🛡️",color:"#3375BB",
+    detect:()=>!!window.trustwallet?.solana,
+    connect:async()=>{const r=await window.trustwallet.solana.connect();return r.publicKey.toString();},
+    url:"https://trustwallet.com/"},
+];
+
+function providerFor(id){
+  const m={phantom:window.solana,solflare:window.solflare,backpack:window.backpack,
+    coinbase:window.coinbaseSolana,brave:window.solana,trust:window.trustwallet?.solana};
+  return m[id];
+}
+
+function buildWalletList(){
+  const det=WALLETS.filter(w=>w.detect&&w.detect());
+  const rest=WALLETS.filter(w=>!w.detect||!w.detect());
+  let h="";
+  if(det.length){h+=`<div class="w-divider">Detected</div>`;h+=det.map(w=>wHTML(w,true)).join("");}
+  if(rest.length){h+=`<div class="w-divider">Install to use</div>`;h+=rest.map(w=>wHTML(w,false)).join("");}
+  document.getElementById("wList").innerHTML=h;
+}
+function wHTML(w,det){
+  return `<div class="w-opt ${det?"det":""}" onclick="pickWallet('${w.id}')">
+    <div class="w-icon" style="background:${w.color}22;border:1px solid ${w.color}44;">${w.icon}</div>
+    <div style="flex:1"><div class="w-name">${w.name}</div>
+      <div class="w-status ${det?"det":""}">${det?"Detected · Ready":"Not installed"}</div></div>
+    <div style="color:var(--muted);font-size:16px;">${det?"›":"↗"}</div>
+  </div>`;
+}
+async function pickWallet(id){
+  const w=WALLETS.find(x=>x.id===id);
+  if(!w)return;
+  if(!w.detect||!w.detect()){window.open(w.url,"_blank");return;}
+  try{
+    const pk=await w.connect();
+    connWallet={id,pubkey:pk};S.walletPubkey=pk;
+    closeModal();updateWalletBtn();render();
+  }catch(e){alert("Connect failed: "+(e.message||"unknown"));}
+}
+function updateWalletBtn(){
+  const btn=document.getElementById("walletBtn");
+  if(!btn)return;
+  if(connWallet){
+    btn.className="wallet-btn conn";
+    const w=WALLETS.find(x=>x.id===connWallet.id);
+    btn.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block;"></span> ${w?.name}: ${connWallet.pubkey.slice(0,4)}...${connWallet.pubkey.slice(-4)}`;
+  }else{
+    btn.className="wallet-btn";
+    btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> Connect Wallet`;
+  }
+}
+function openModal(){
+  if(connWallet){if(confirm("Disconnect?")){{connWallet=null;S.walletPubkey=null;updateWalletBtn();render();}return;}}
+  buildWalletList();
+  document.getElementById("wModal").classList.add("open");
+}
+function closeModal(){document.getElementById("wModal").classList.remove("open");}
+function bgClose(e){if(e.target.id==="wModal")closeModal();}
+
+// ── PRICES ───────────────────────────────────────────────
+async function fetchPrices(){
+  try{
+    const r=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd");
+    const d=await r.json();
+    solUSD=d?.solana?.usd||150;satUSD=0.005;
+    const el=document.getElementById("satPrice");
+    if(el)el.textContent="$"+satUSD.toFixed(4);
+  }catch(e){}
+}
+
+// ── STATE ────────────────────────────────────────────────
+let S={
+  step:1,lockType:null,walletPubkey:null,
+  tokenMint:"",tokenAmount:"",duration:"30",durationUnit:"days",unlockPrice:"",
+  recipients:[{address:""}],feeMethod:"sol",
+  txSig:null,txSig2:null,loading:false,loadingStep:0,error:""
+};
+
+function calcFee(){return+((parseFloat(S.tokenAmount)||0)*TOKEN_FEE_PCT).toFixed(6);}
+function calcNet(){return+((parseFloat(S.tokenAmount)||0)-calcFee()).toFixed(6);}
+function satForFee(){if(!satUSD||!solUSD)return 0;return Math.ceil((SOL_FEE*solUSD*SAT_DISC)/satUSD);}
+
+// ── TRANSACTIONS ─────────────────────────────────────────
+async function sendSOL(conn){
+  const prov=providerFor(connWallet?.id)||window.solana;
+  const from=new solanaWeb3.PublicKey(S.walletPubkey);
+  const to=new solanaWeb3.PublicKey(FEE_WALLET);
+  const {blockhash}=await conn.getLatestBlockhash();
+  const tx=new solanaWeb3.Transaction({recentBlockhash:blockhash,feePayer:from});
+  tx.add(solanaWeb3.SystemProgram.transfer({fromPubkey:from,toPubkey:to,lamports:Math.round(SOL_FEE*solanaWeb3.LAMPORTS_PER_SOL)}));
+  const signed=await prov.signTransaction(tx);
+  return conn.sendRawTransaction(signed.serialize());
+}
+
+async function sendSPL(conn,mint,amount,dec){
+  const prov=providerFor(connWallet?.id)||window.solana;
+  const TPK=new solanaWeb3.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+  const ATPK=new solanaWeb3.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJe1bRS");
+  const from=new solanaWeb3.PublicKey(S.walletPubkey);
+  const mintPK=new solanaWeb3.PublicKey(mint);
+  const toOwner=new solanaWeb3.PublicKey(FEE_WALLET);
+  const bigAmt=BigInt(Math.round(amount*(10**dec)));
+  const ata=o=>solanaWeb3.PublicKey.findProgramAddressSync([o.toBuffer(),TPK.toBuffer(),mintPK.toBuffer()],ATPK)[0];
+  const fromATA=ata(from),toATA=ata(toOwner);
+  const {blockhash}=await conn.getLatestBlockhash();
+  const tx=new solanaWeb3.Transaction({recentBlockhash:blockhash,feePayer:from});
+  const toInfo=await conn.getAccountInfo(toATA);
+  if(!toInfo)tx.add(new solanaWeb3.TransactionInstruction({programId:ATPK,
+    keys:[{pubkey:from,isSigner:true,isWritable:true},{pubkey:toATA,isSigner:false,isWritable:true},
+      {pubkey:toOwner,isSigner:false,isWritable:false},{pubkey:mintPK,isSigner:false,isWritable:false},
+      {pubkey:solanaWeb3.SystemProgram.programId,isSigner:false,isWritable:false},{pubkey:TPK,isSigner:false,isWritable:false}],
+    data:Buffer.from([])}));
+  const td=Buffer.alloc(9);td[0]=3;td.writeBigUInt64LE(bigAmt,1);
+  tx.add(new solanaWeb3.TransactionInstruction({programId:TPK,
+    keys:[{pubkey:fromATA,isSigner:false,isWritable:true},{pubkey:toATA,isSigner:false,isWritable:true},{pubkey:from,isSigner:true,isWritable:false}],
+    data:td}));
+  const signed=await prov.signTransaction(tx);
+  return conn.sendRawTransaction(signed.serialize());
+}
+
+async function runConfirm(){
+  if(!S.walletPubkey){S.error="Connect wallet first.";render();return;}
+  S.loading=true;S.error="";S.loadingStep=1;render();
+  const conn=new solanaWeb3.Connection(RPC,"confirmed");
+  try{
+    let sig1=S.feeMethod==="sol"?await sendSOL(conn):await sendSPL(conn,SATURN_MINT,satForFee(),SATURN_DEC);
+    await conn.confirmTransaction(sig1,"confirmed");
+    S.txSig=sig1;S.loadingStep=2;render();
+    try{
+      const sig2=await sendSPL(conn,S.tokenMint,calcFee(),6);
+      await conn.confirmTransaction(sig2,"confirmed");
+      S.txSig2=sig2;
+    }catch(e){console.warn("Protocol fee skipped:",e.message);}
+    S.loadingStep=3;S.step=5;
+  }catch(e){S.error=e.message||"Transaction failed.";}
+  finally{S.loading=false;render();}
+}
+
+// ── RENDER ───────────────────────────────────────────────
+function render(){renderSteps();renderCard();}
+function renderSteps(){
+  const b=document.getElementById("stepBar");if(!b)return;
+  b.innerHTML=STEP_NAMES.map((s,i)=>{
+    const n=i+1,done=n<S.step,act=n===S.step;
+    return `<div class="si"><div class="sc ${done?"done":act?"act":""}">${done?"✓":n}</div>
+      <div class="sl ${act?"act":""}">${s}</div></div>
+      ${i<STEP_NAMES.length-1?`<div class="sconn ${done?"done":""}"></div>`:""}`;
+  }).join("");
+}
+function renderCard(){
+  const c=document.getElementById("mainCard");if(!c)return;
+  if(S.step===5){c.innerHTML=renderSuccess();return;}
+  if(S.loading){c.innerHTML=renderLoading();return;}
+  const fns=[null,step1,step2,step3,step4];
+  c.innerHTML=fns[Math.min(S.step,4)]();
+}
+
+function step1(){
+  const lc=(t,icon,title,desc,tags,beta=false)=>`
+    <div class="lc ${S.lockType===t?"sel":""}" onclick="pick('${t}')">
+      <div class="lc-hd"><div class="lc-icon">${icon}</div>
+        <div style="display:flex;align-items:center;gap:7px;">${beta?'<span class="bbeta">BETA</span>':""}
+          <div class="radio ${S.lockType===t?"chk":""}"></div></div></div>
+      <div class="lc-title">${title}</div>
+      <div class="lc-desc">${desc}</div>
+      <div class="tags"><span class="tl">Useful for</span>${tags}</div>
+    </div>`;
+  return `<div class="snum">STEP 01</div><div class="ctitle">Choose Lock Type</div>
+    <div class="csub">Select how your meme tokens will be locked.</div>
+    <div class="lc-grid">
+      ${lc("time","⏱","Time-Based Lock","Lock any SPL token for a fixed period. Auto-releases when the timer ends.",
+        '<span class="tag tg">💎 Diamond Hands</span><span class="tag tg">LP Tokens</span>')}
+      ${lc("price","📈","Price-Based Lock","Lock until your target price is reached. Price feeds monitored automatically.",
+        '<span class="tag ta">🚀 Moonbags</span>',true)}
+    </div>
+    <div class="nav-row"><div></div>
+      <button class="btn-next" onclick="go(2)" ${!S.lockType?"disabled":""}>Next Step →</button></div>`;
+}
+
+function step2(){
+  const sa=satForFee(),sUSD=(sa*satUSD).toFixed(2),solD=(SOL_FEE*solUSD).toFixed(2);
+  return `<div class="snum">STEP 02</div><div class="ctitle">Configuration</div>
+    <div class="csub">Set your token and lock parameters.</div>
+    <div class="fg"><label class="fl">Token Mint Address</label>
+      <input class="fi" placeholder="SPL token mint address..." value="${S.tokenMint}" oninput="S.tokenMint=this.value"/></div>
+    <div class="fg"><label class="fl">Amount to Lock</label>
+      <input class="fi" type="number" min="0" placeholder="0.00" value="${S.tokenAmount}" oninput="S.tokenAmount=this.value;updF()"/></div>
+    ${S.lockType==="time"?`<div class="g2">
+      <div class="fg"><label class="fl">Duration</label>
+        <input class="fi" type="number" min="1" value="${S.duration}" oninput="S.duration=this.value"/></div>
+      <div class="fg"><label class="fl">Unit</label>
+        <select class="fi" onchange="S.durationUnit=this.value">
+          <option value="days" ${S.durationUnit==="days"?"selected":""}>Days</option>
+          <option value="weeks" ${S.durationUnit==="weeks"?"selected":""}>Weeks</option>
+          <option value="months" ${S.durationUnit==="months"?"selected":""}>Months</option>
+          <option value="years" ${S.durationUnit==="years"?"selected":""}>Years</option>
+        </select></div></div>`:`
+    <div class="fg"><label class="fl">Unlock Price (USD)</label>
+      <input class="fi" type="number" step="0.0001" placeholder="e.g. 0.0050" value="${S.unlockPrice}" oninput="S.unlockPrice=this.value"/>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;">Auto-releases when this price is reached.</div></div>`}
+    <span class="fee-lbl">Creation Fee Payment Method</span>
+    <div class="fee-grid">
+      <div class="fo ${S.feeMethod==="sol"?"fsol":""}" onclick="setFee('sol')">
+        <div class="fo-hd"><span class="fo-icon">◎</span><div class="frdot"></div></div>
+        <div class="fo-title">Pay with SOL</div>
+        <div class="fo-amt sol">${SOL_FEE} SOL</div>
+        <div class="fo-sub">≈ $${solD}</div></div>
+      <div class="fo ${S.feeMethod==="sat"?"fsat":""}" onclick="setFee('sat')" style="position:relative;">
+        <div class="save-pill">SAVE 50%</div>
+        <div class="fo-hd"><span class="fo-icon">🪐</span><div class="frdot"></div></div>
+        <div class="fo-title">Pay with $SATURN</div>
+        <div class="fo-amt sat">${sa.toLocaleString()} SAT</div>
+        <div class="fo-sub">≈ $${sUSD} · 50% off! · <a href="index.html" style="color:var(--gold);">Get $SATURN ↗</a></div></div>
+    </div>
+    <div class="fbox"><div class="fbox-title">📋 Fee Breakdown</div>
+      <div class="fline"><span class="fk">Creation fee</span>
+        <span class="fv ${S.feeMethod==="sat"?"g":"p"}">${S.feeMethod==="sol"?SOL_FEE+" SOL":sa.toLocaleString()+" $SATURN"}</span></div>
+      <div class="fline"><span class="fk">Protocol fee (0.20%)</span>
+        <span class="fv" id="ftv">${calcFee()>0?calcFee()+" tokens":"—"}</span></div>
+      <div class="fline"><span class="fk">Net tokens locked</span>
+        <span class="fv g" id="fnv">${calcNet()>0?calcNet()+" tokens":"—"}</span></div></div>
+    <div class="nav-row">
+      <button class="btn-back" onclick="go(1)">← Back</button>
+      <button class="btn-next" onclick="go(3)" ${!S.tokenMint||!S.tokenAmount?"disabled":""}>Next Step →</button></div>`;
+}
+
+function updF(){
+  const t=document.getElementById("ftv"),n=document.getElementById("fnv");
+  if(t)t.textContent=calcFee()>0?calcFee()+" tokens":"—";
+  if(n)n.textContent=calcNet()>0?calcNet()+" tokens":"—";
+}
+function setFee(m){S.feeMethod=m;renderCard();}
+
+function step3(){
+  return `<div class="snum">STEP 03</div><div class="ctitle">Recipients</div>
+    <div class="csub">Wallets that receive tokens after unlock.</div>
+    <div>${S.recipients.map((r,i)=>`<div class="rec-row">
+      <input class="fi" placeholder="Wallet address ${i+1}" value="${r.address}" oninput="S.recipients[${i}].address=this.value"/>
+      ${S.recipients.length>1?`<button class="btn-rm" onclick="rmR(${i})">×</button>`:""}</div>`).join("")}</div>
+    <button class="btn-add" onclick="addR()">+ Add Recipient</button>
+    <div class="nav-row"><button class="btn-back" onclick="go(2)">← Back</button>
+      <button class="btn-next" onclick="go(4)">Next Step →</button></div>`;
+}
+
+function step4(){
+  const ld=S.lockType==="time"?`${S.duration} ${S.durationUnit}`:`$${S.unlockPrice}`;
+  const sa=satForFee();
+  const fl=S.feeMethod==="sol"?`${SOL_FEE} SOL`:`${sa.toLocaleString()} $SATURN (50% saved!)`;
+  return `<div class="snum">STEP 04</div><div class="ctitle">Review & Confirm</div>
+    <div class="csub">Double-check before signing.</div>
+    <div class="rtbl">
+      <div class="rrow"><span class="rk">Lock Type</span><span class="rv">${S.lockType==="price"?"Price-Based":"Time-Based"}</span></div>
+      <div class="rrow"><span class="rk">Token Mint</span><span class="rv">${S.tokenMint||"—"}</span></div>
+      <div class="rrow"><span class="rk">Lock Amount</span><span class="rv">${S.tokenAmount||"—"} tokens</span></div>
+      <div class="rrow"><span class="rk">${S.lockType==="time"?"Duration":"Unlock Price"}</span><span class="rv">${ld}</span></div>
+      <div class="rrow"><span class="rk">Recipients</span><span class="rv">${S.recipients.filter(r=>r.address).length} wallet(s)</span></div>
+      <div class="rrow"><span class="rk">Net Tokens Locked</span><span class="rv" style="color:var(--gold)">${calcNet()}</span></div>
+    </div>
+    <div class="fbox"><div class="fbox-title">💸 Fees on Confirm</div>
+      <div class="fline"><span class="fk">Creation fee</span>
+        <span class="fv ${S.feeMethod==="sat"?"g":"p"}">${fl}</span></div>
+      <div class="fline"><span class="fk">Protocol fee (0.20%)</span>
+        <span class="fv">${calcFee()} tokens → protocol wallet</span></div></div>
+    ${S.error?`<div class="alert a-red">⚠️ ${S.error}</div>`:""}
+    <div class="alert a-gold">⚠️ Your wallet will prompt approval for ${S.feeMethod==="sol"?`${SOL_FEE} SOL`:`${sa.toLocaleString()} $SATURN`} then the 0.20% protocol fee.</div>
+    ${!S.walletPubkey?'<div class="alert a-blue">🔌 Connect your wallet above to proceed.</div>':""}
+    <div class="nav-row"><button class="btn-back" onclick="go(3)">← Back</button>
+      <button class="btn-confirm" onclick="runConfirm()" ${!S.walletPubkey||S.loading?"disabled":""}>🔒 Sign & Lock</button></div>`;
+}
+
+function renderLoading(){
+  const txs=[
+    S.feeMethod==="sol"?"Sending 0.5 SOL creation fee...":"Sending $SATURN fee (50% off)...",
+    "Sending 0.20% protocol token fee...","Confirming on-chain..."];
+  return `<div class="snum">PROCESSING</div><div class="ctitle">Locking Tokens...</div>
+    <div class="csub">Approve in your wallet. Don't close this page.</div>
+    <div style="margin-bottom:20px;">${txs.map((t,i)=>{
+      const st=i+1<S.loadingStep?"done":i+1===S.loadingStep?"active":"pending";
+      return `<div class="txstep"><div class="txdot td-${st.charAt(0)}"></div>
+        <span class="txlbl ${st}">${t}</span>
+        ${st==="done"?'<span style="color:var(--green);font-size:13px;">✓</span>':""}
+        ${st==="active"?'<span class="spinner"></span>':""}</div>`;
+    }).join("")}</div>
+    <div class="alert a-gold">👛 Check your wallet for approval prompts</div>`;
+}
+
+function renderSuccess(){
+  return `<div class="success"><div class="s-emoji">🔒</div>
+    <div class="s-title">Tokens Locked!</div>
+    <div class="s-sub">Your tokens are locked on-chain.${S.feeMethod==="sat"?` <strong style="color:var(--gold)">50% saved</strong> with $SATURN!`:""}</div>
+    ${S.txSig?`<div class="txcard"><div class="txcard-lbl">Creation Fee Tx</div>
+      <a class="txlink" href="https://solscan.io/tx/${S.txSig}" target="_blank">${S.txSig}</a></div>`:""}
+    ${S.txSig2?`<div class="txcard"><div class="txcard-lbl">Protocol Fee Tx</div>
+      <a class="txlink" href="https://solscan.io/tx/${S.txSig2}" target="_blank">${S.txSig2}</a></div>`:""}
+    <div class="alert a-green">✅ Fees sent to protocol treasury</div>
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-lbl">Lock Type</div><div class="stat-val" style="font-size:12px;">${S.lockType==="price"?"Price":"Time"}</div></div>
+      <div class="stat"><div class="stat-lbl">Fee Saved</div><div class="stat-val">${S.feeMethod==="sat"?"50%":"0%"}</div></div>
+      <div class="stat"><div class="stat-lbl">Protocol</div><div class="stat-val">0.20%</div></div>
+    </div>
+    <button class="btn-next" style="margin:22px auto 0;" onclick="reset()">🔒 New Lock</button></div>`;
+}
+
+function pick(t){S.lockType=t;renderCard();}
+function go(n){S.step=n;S.error="";render();}
+function addR(){S.recipients.push({address:""});renderCard();}
+function rmR(i){S.recipients.splice(i,1);renderCard();}
+function reset(){const pk=S.walletPubkey;S={step:1,lockType:null,walletPubkey:pk,tokenMint:"",tokenAmount:"",duration:"30",durationUnit:"days",unlockPrice:"",recipients:[{address:""}],feeMethod:"sol",txSig:null,txSig2:null,loading:false,loadingStep:0,error:""};render();}
+
+fetchPrices();render();
+setInterval(fetchPrices,60000);
+window.addEventListener("load",async()=>{
+  if(window.solana?.isPhantom){try{const r=await window.solana.connect({onlyIfTrusted:true});connWallet={id:"phantom",pubkey:r.publicKey.toString()};S.walletPubkey=r.publicKey.toString();updateWalletBtn();render();}catch(e){}}
+});
+</script>
+</body>
+</html>
